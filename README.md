@@ -10,17 +10,18 @@ DiffMatcher
 Generates a diff by matching against user-defined matchers written in ruby.
 
 DiffMatcher matches input data (eg. from a JSON API) against values,
-ranges, classes, regexes, procs, custom matchers and/or easily composed,
+ranges, classes, regexes, procs, custom matchers, RSpec matchers and/or easily composed,
 nested combinations thereof to produce an easy to read diff string.
 
 Actual input values are matched against expected matchers in the following way:
 
 ``` ruby
-actual.is_a? expected  # when expected is a class
-expected.match actual  # when expected is a regexp
-expected.call actual   # when expected is a proc
-actual == expected     # when expected is anything else
-expected.diff actual   # when expected is a built-in DiffMatcher
+actual.is_a? expected    # when expected is a class
+expected.match actual    # when expected is a regexp
+expected.call actual     # when expected is a proc
+expected.matches? actual # when expected implements an RSpec Matcher interface
+actual == expected       # when expected is anything else
+expected.diff actual     # when expected is a built-in DiffMatcher
 ```
 
 Using these building blocks, more complicated nested matchers can be
@@ -201,6 +202,43 @@ puts DiffMatcher::difference(expected, [1, 2.00, "3"])
 # => Where, - 1 missing, + 1 additional, | 2 match_matcher
 ```
 
+When `actual` to be matched against some custom logic, an object with RSpec Matcher
+interface can be used. Methods `#mathches?(actual)`, `#description` and `#failure_message`
+must be implemented.
+
+Sure, you can take one of RSpec matchers and do not implement your own.
+
+```ruby
+class BeAWeekend
+  def matches?(day)
+    @day = day
+    %w{Sat Sun}.include?(day)
+  end
+
+  def description
+    'be a weekend day'
+  end
+
+  def failure_message
+    "expected #{@day} to #{description}"
+  end
+end
+
+be_a_weekend = BeAWeekend.new
+puts DiffMatcher::difference(be_a_weekend, 'Mon')
+# => - expected Mon to be a weekend day+ "Mon"
+# => Where, - 1 missing, + 1 additional
+
+
+all_be_weekends = DiffMatcher::AllMatcher.new(be_a_weekend)
+puts DiffMatcher::difference(all_be_weekends, ['Sat', 'Mon'])
+# => [
+# =>   R "Sat" be a weekend day,
+# =>   - expected Mon to be a weekend day+ "Mon"
+# => ]
+# => Where, - 1 missing, + 1 additional, R 1 match_rspec
+```
+
 ### Matcher options
 
 Matcher options can be passed to `DiffMatcher::difference` or `DiffMatcher::Matcher#diff`
@@ -285,6 +323,7 @@ in the following way:
     match matcher => "| "
     match range   => ". "
     match proc    => "{ "
+    match rspec   => "R "
 
 
 #### Colours
@@ -301,6 +340,7 @@ Using the `:default` colour scheme items shown in a difference are coloured as f
     match matcher => blue
     match range   => cyan
     match proc    => cyan
+    match rspec   => cyan
 
 Other colour schemes, eg. `:color_scheme=>:white_background` will use different colour mappings.
 
