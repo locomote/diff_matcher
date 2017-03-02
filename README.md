@@ -34,7 +34,7 @@ actual   = { :a=>{ :a1=>10, :a2=>12 }, :b=>[ 21     ], :c=>'3' , :d=>4     , :e=
 puts DiffMatcher::difference(expected, actual, :color_scheme=>:white_background)
 ```
 
-![example output](https://raw.github.com/playup/diff_matcher/master/doc/diff_matcher.gif)
+![example output](https://raw.github.com/diff-matcher/diff_matcher/master/doc/diff_matcher.gif)
 
 
 Installation
@@ -435,6 +435,75 @@ Will result in:
 Finished in 0.00601 seconds
 2 examples, 1 failure
 ```
+
+
+Comparing to built-in rspec matcher
+---
+RSpec 3 now has a built-in complex matcher:
+``` ruby
+RSpec.describe "a complex example" do
+  let(:response) {{person: {first_name: "Noel", last_name: "Rappin"},
+                  company: {name: "Table XI", url: "www.tablexi.com"}}}
+
+  it "gets the right response" do
+    expect(response).to match({
+      person: {first_name: "Avdi", last_name: "Grim"},
+      company: {name: "ShipRise", url: a_string_matching(/tablexi/)}
+    })
+  end
+end
+```
+
+With `--color` set, will result in:
+
+![built-in complex matcher](https://raw.github.com/diff-matcher/diff_matcher/master/doc/builtin_complex_matcher.png)
+
+
+But using `diff_matcher`:
+``` ruby
+require "diff_matcher/rspec_3"
+
+RSpec.describe "a complex example" do
+  let(:response) {{person: {first_name: "Noel", last_name: "Rappin"},
+                  company: {name: "Table XI", url: "www.tablexi.com"}}}
+
+  it "gets the right response" do
+    expect(response).to be_matching({
+      person: {first_name: "Avdi", last_name: "Grim"},
+      company: {name: "ShipRise", url: /tablexi/}
+    }).with_options(quiet: false)
+  end
+end
+```
+
+With `--color` set, will result in:
+
+![diff-matcher](https://raw.github.com/diff-matcher/diff_matcher/master/doc/diff_matcher.png)
+
+ie. by making these changes:
+``` diff
+--- more_tapas_spec.rb  2017-03-02 19:51:26.000000000 +1100
++++ even_more_tapas_spec.rb 2017-03-02 20:41:52.000000000 +1100
+@@ -1,11 +1,13 @@
++require "diff_matcher/rspec_3"
++
+ RSpec.describe "a complex example" do
+   let(:response) {{person: {first_name: "Noel", last_name: "Rappin"},
+                   company: {name: "Table XI", url: "www.tablexi.com"}}}
+
+   it "gets the right response" do
+-    expect(response).to match({
++    expect(response).to be_matching({
+       person: {first_name: "Avdi", last_name: "Grim"},
+-      company: {name: "ShipRise", url: a_string_matching(/tablexi/)}
+-    })
++      company: {name: "ShipRise", url: /tablexi/}
++    }).with_options(quiet: false)
+   end
+ end
+```
+
+NB. Its not as easy to see with RSpec's built-in complex matcher that the url actually matched in the above example.
 
 
 Contributing
