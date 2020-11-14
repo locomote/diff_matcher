@@ -1,0 +1,93 @@
+#!/bin/bash -e
+# Examples:
+#   # Show diff between the TABLES in two databases
+#   TABLES="languages" diff-mysql database1 database2
+#
+#   # Show diff between languages TABLES skipping any output containing 'python'
+#   FILTER_CMD='grep -v python' TABLES=languages diff-mysql database{1,2}
+#
+#   # Filter at the database level instead
+#   FILTER_SQL="WHERE languages.name = 'python'" TABLES=languages diff-mysql database{1,2}
+#
+set -eo pipefail
+
+DB_USERNAME=${DB_USERNAME:-root}
+DB_PASSWORD=${DB_PASSWORD:-password}
+DB_HOST=${DB_HOST:-localhost}
+
+MAX_ROW_COUNT=${MAX_ROW_COUNT:-100}
+SKIP=${SKIP:-messages}
+
+DB_NAME1=$1
+DB_NAME2=$2
+
+puts() { local color=$1; local prefix=$2; local msg=$3
+  echo -e "[$(date +%Y%m%d%H%M%S)] [${color};1m${prefix}:[0m[${color}m $msg[0m" 1>&2
+}
+
+info()    { local msg=$*; puts 34 INFO "$msg"   ; }
+success() { local msg=$*; puts 32 SUCCESS "$msg"; }
+error()   { local msg=$*; puts 31 ERROR "$msg"  ; }
+
+skip() { local name=$1
+  for skip_name in $SKIP; do
+    [ "$skip_name" == "$name" ] && return 0
+  done
+  return 1
+}
+
+do_mysql() { local db_name="$1"; shift
+  mysql "$@" --user="$DB_USERNAME" --password="$DB_PASSWORD" --host="$DB_HOST" "$db_name" 2> /dev/null
+}
+
+do_mysql_silent() { local db_name=$1
+  do_mysql "$db_name" --silent
+}
+
+tables() { local db_name=$1
+  info "Fetching table names from database $db_name (host '$DB_HOST') ..."
+  echo "show tables" |
+  do_mysql_silent "$db_name"
+}
+TABLES=${TABLES:-$(tables "$DB_NAME1")}
+
+count_rows() { local table=$1; local db_name=$2
+  echo "select count(id) from $table" |
+  do_mysql_silent "$db_name"
+}
+
+diff_cmd() {
+  #diff -u $@
+  COLOR_ENABLED=1 ${DIFF_CMD:-diff-csv} "$@"
+}
+
+filter_cmd() {
+  ${FILTER_CMD:-cat}
+}
+
+dump_table() { local table=$1; local db_name=$2
+  echo "$(echo 'SELECT *') FROM $table ${FILTER_SQL}" |
+  do_mysql "$db_name" |
+  filter_cmd
+}
+
+table_diff() { local table="$1"
+  info "Diffing $table ($DB_NAME1 vs $DB_NAME2)"
+  diff_cmd <(dump_table "$table" {"$DB_NAME1","$DB_NAME2"})
+}
+
+
+exit_code=0
+for table in $TABLES; do
+  row_count=$(count_rows "$table" "$DB_NAME1")
+  if [ $row_count -lt $MAX_ROW_COUNT ]; then
+    if skip "$table"; then
+      info "Skipping $table (as it was referenced in SKIP)"
+    else
+      table_diff "$table" || exit_code=$?
+    fi
+  else
+    info "Skipping $table (as row count exceeds MAX_ROW_COUNT, $row_count > $MAX_ROW_COUNT)"
+  fi
+done
+exit $exit_code

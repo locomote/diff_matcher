@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+require 'diff_matcher'
+require 'json'
+
+expected, actual = ARGV.first(2).map do |f|
+  JSON.parse(File.read(f))
+end
+
+diff=DiffMatcher.difference(expected, actual, color_scheme: :default)
+
+if diff
+  puts diff
+  exit 1
+end

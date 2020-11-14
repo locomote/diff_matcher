@@ -1,5 +1,9 @@
 # Changelog
 
+### v2.8.0
+
+* Add new diff-* executables for matching JSON & CSV files on the command line
+
 ### v2.7.1
 
 * Use `failure_message` from RSpec matchers in diff output. (denyago)

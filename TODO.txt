@@ -12,3 +12,7 @@ ie. by matching `actual` against an `expected` value/pattern/class/proc.
 Wed Dec 14 2011
 - underline
 - string diff
+
+
+Sat Nov 14 2020
+- add tests for exe/diff-* executables

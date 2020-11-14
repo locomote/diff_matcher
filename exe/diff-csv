@@ -1,0 +1,89 @@
+#!/usr/bin/env ruby
+# Given:
+#   --- languages-v1.tsv ---
+#   id	name	author	first_appeared	stable_release
+#   1	ruby	Yukihiro Matsumoto	1995	2.7.1
+#   2	python	Guido van Rossum	1991	3.9.0
+#   3	jq	Stephen Dolan	2013	1.6
+#   --- languages-v1.tsv ---
+#
+#   --- languages-v2.tsv ---
+#   id	name	author	first_appeared	stable_release
+#   1	ruby	Yukihiro Matsumoto	1995	2.7.2
+#   2	python	Guido van Rossum	1991	3.9.0
+#   3	jq	Stephen Dolan	2013	1.6
+#   --- languages-v2.tsv ---
+#
+# Examples:
+#   > diff-csv languages-v1.tsv languages-v2.tsv
+#   {
+#     1=>{
+#       "stable_release"=>- "2.7.1"+ "2.7.2"
+#     }
+#   }
+#   Where, - 1 missing, + 1 additional
+#
+#   > VERBOSE=1 diff-csv languages-v{1,2}.tsv
+#   {
+#     1=>{
+#       "name"=>"ruby",
+#       "author"=>"Yukihiro Matsumoto",
+#       "first_appeared"=>1995,
+#       "stable_release"=>- "2.7.1"+ "2.7.2"
+#     },
+#     2=>{
+#       "name"=>"python",
+#       "author"=>"Guido van Rossum",
+#       "first_appeared"=>1991,
+#       "stable_release"=>"3.9.0"
+#     },
+#     3=>{
+#       "name"=>"jq",
+#       "author"=>"Stephen Dolan",
+#       "first_appeared"=>2013,
+#       "stable_release"=>1.6
+#     }
+#   }
+#   Where, - 1 missing, + 1 additional
+#
+#   > KEY=name diff-csv languages-v{1,2}.tsv
+#   {
+#     "ruby"=>{
+#       "stable_release"=>- "2.7.1"+ "2.7.2"
+#     }
+#   }
+#   Where, - 1 missing, + 1 additional
+
+require 'csv'
+require 'diff_matcher'
+
+COL_SEP=ENV.fetch("COL_SEP", "\t")
+KEY=ENV.fetch("KEY", "id")
+
+
+def fix_nulls(h)
+  h.each { |k, v| h[k] = (v == 'NULL' ? nil : v) }
+end
+
+def records(file, key=KEY, col_sep=COL_SEP)
+  CSV(file, col_sep: COL_SEP, headers: true, converters: :all).inject({}) do |h, row|
+    data = fix_nulls(row.to_hash)
+    h.update(data.delete(key)=> data)
+  end
+end
+
+data0 = records(File.open(ARGV[0]))
+data1 = records(File.open(ARGV[1]))
+
+diff_opts = {
+  color_enabled: true,
+  ignore_additional: ENV['IGNORE_ADDITIONAL'],
+  quiet: !ENV['VERBOSE']
+}
+
+diff=DiffMatcher.difference(data0, data1, diff_opts)
+
+if diff
+  puts diff
+  exit 1
+end

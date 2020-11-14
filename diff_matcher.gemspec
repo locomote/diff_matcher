@@ -22,4 +22,6 @@ EOF
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
   s.require_paths = ["lib"]
+  s.bindir        = "exe"
+  s.executables   = s.files.grep(%r{^#{s.bindir}/}) { |f| File.basename(f) }
 end
