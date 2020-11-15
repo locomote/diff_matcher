@@ -55,7 +55,7 @@
 #   Where, - 1 missing, + 1 additional
 
 require 'csv'
-require 'diff_matcher'
+require 'diff_matcher/cli'
 
 COL_SEP=ENV.fetch("COL_SEP", "\t")
 KEY=ENV.fetch("KEY", "id")
@@ -72,18 +72,7 @@ def records(file, key=KEY, col_sep=COL_SEP)
   end
 end
 
-data0 = records(File.open(ARGV[0]))
-data1 = records(File.open(ARGV[1]))
-
-diff_opts = {
-  color_enabled: true,
-  ignore_additional: ENV['IGNORE_ADDITIONAL'],
-  quiet: !ENV['VERBOSE']
-}
-
-diff=DiffMatcher.difference(data0, data1, diff_opts)
-
-if diff
-  puts diff
-  exit 1
-end
+DiffMatcher::CLI.diff(
+  records(File.open(ARGV[0])),
+  records(File.open(ARGV[1]))
+)

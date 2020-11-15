@@ -3,6 +3,6 @@ require 'diff_matcher/cli'
 require 'json'
 
 DiffMatcher::CLI.diff(
-  JSON.parse(File.read(ARGV[-2])),
+  eval(File.read(ARGV[-2])),
   JSON.parse(File.read(ARGV[-1]))
 )

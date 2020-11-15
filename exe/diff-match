@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+require 'diff_matcher/cli'
+
+DiffMatcher::CLI.diff(
+  eval(File.read(ARGV[-2])),
+  eval(File.read(ARGV[-1]))
+)
